@@ -1,0 +1,32 @@
+---
+- name: Start or Restart tower
+  command: ansible-tower-service restart
+
+- name: Deprovision tower nodes that are not up.
+  command: tower-manage deprovision_node --name "{{ item }}"
+  with_items: "{{ groups[deprovision_nodes] }}"
+
+- name: Provision tower nodes that are up.
+  command: tower-manage register_instance --hostname "{{ item }}"
+  with_items: "{{ groups[provision_nodes] }}"
+
+- name: Check the status of nginx
+  command: systemctl is-failed nginx
+  register: ng_service_result
+  failed_when: "'inactive' == ng_service_result.stdout"
+  changed_when: False
+
+- name: Check the status of supervisord
+  command: systemctl is-failed supervisord
+  register: visor_service_result
+  failed_when: "'inactive' == visor_service_result.stdout"
+  changed_when: False
+
+- name: Check if Tower webpage is running
+  uri:
+    url: 'https://{{inventory_hostname}}/#/login'
+    return_content: yes
+    validate_certs: no
+  register: webpage
+  failed_when: "'ansible' not in webpage.content"
+...

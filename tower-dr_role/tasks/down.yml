@@ -1,0 +1,30 @@
+---
+- name: Gracefully stop the status of nginx
+  command: nginx -s quit
+  ignore_errors: True
+
+- name: Stop Tower
+  command: ansible-tower-service stop
+
+- name: Check the status of nginx
+  command: systemctl is-failed nginx
+  register: ng_service_result
+  ignore_errors: True
+  failed_when: "'inactive' != ng_service_result.stdout"
+  changed_when: False
+
+- name: Check the status of supervisord
+  command: systemctl is-failed supervisord
+  register: visor_service_result
+  ignore_errors: True
+  failed_when: "'inactive' != visor_service_result.stdout"
+  changed_when: False
+
+- name: Check if Tower webpage is not running
+  uri:
+    url: 'https://{{inventory_hostname}}/#/login'
+    validate_certs: no
+  register: wepbage_result
+  ignore_errors: True
+  failed_when: "'OK' in wepbage_result.msg"
+...

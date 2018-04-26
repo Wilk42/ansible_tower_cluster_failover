@@ -1,0 +1,5 @@
+---
+tower_status: skip
+deprovision_nodes: tower_dr
+provision_nodes: tower_primary
+broken_tower: no

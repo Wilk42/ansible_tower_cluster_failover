@@ -1,0 +1,45 @@
+---
+- name: Check Tower version
+  command: tower-manage --version
+  register: version_primary
+  when: inventory_hostname in groups['tower_primary']
+
+- name: Get Secret_Key content.
+  command: cat /etc/tower/SECRET_KEY
+  register: key
+  when: inventory_hostname in groups['tower_primary']
+
+- name: Check Tower version
+  command: tower-manage --version
+  register: version_dr
+  when: inventory_hostname in groups['tower_dr']
+
+- name: Set Primary Tower_version_dr fact
+  set_fact: version_dr="{{ hostvars[groups['tower_primary'][0]].version_primary.stdout }}"
+  when: inventory_hostname in groups['tower_primary']
+
+- debug:
+    msg: "Tower version is not up to date"
+  failed_when:
+    - version_primary.stdout != version_dr
+  when:
+    - inventory_hostname in groups['tower_primary']
+    - broken_tower != 'skip'
+
+- name: Touch the Secret file in case it is not there
+  file:
+    path: /etc/tower/SECRET_KEY
+    state: touch
+  when: inventory_hostname in groups['tower_dr']
+
+- name: Replace the Secret Key file with the matching string, backing the file before changing.
+  replace:
+    path: /etc/tower/SECRET_KEY
+    regexp: '.*'
+    replace:  "{{ hostvars[groups['tower_primary'][0]].key.stdout }}"
+    backup: yes
+  when: inventory_hostname in groups['tower_dr']
+
+- include: "{{ tower_status }}.yml"
+  when: tower_status != 'skip'
+...
